@@ -1,0 +1,46 @@
+input {
+  s3 {
+    bucket => "${monitor_bkt}"
+    prefix => "${cf_prefix}"
+    region => "${region}"
+  }
+}
+filter {
+  grok {
+    match => { "message" => "${grok_pattern}" }
+  }
+
+  ruby {
+    path => "${parser_file}"
+    script_params => {
+      "source_field" => "cs_uri_stem"
+      "cdn_host" => "x_host_header"
+      "access_store_host" => "${els_ep}"
+    }
+  }
+  mutate {
+    add_field => [ "listener_timestamp", "${date_time}" ]
+  }
+  date {
+    match => [ "listener_timestamp", "yy-MM-dd HH:mm:ss" ]
+    target => "access_timestamp"
+  }
+  geoip {
+    source => "c_ip"
+  }
+  useragent {
+    source => "User_Agent"
+    target => "useragent"
+  }
+  mutate {
+    remove_field => ["date", "time", "listener_timestamp", "cloudfront_version", "message", "cloudfront_fields", "User_Agent"]
+  }
+}
+output {
+  amazon_es {
+    hosts => ["${els_ep}"]
+    region => "${region}"
+    index => "${index_name}"
+    template => "${template}"
+  }
+}

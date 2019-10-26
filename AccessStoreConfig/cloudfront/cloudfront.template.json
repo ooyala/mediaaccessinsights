@@ -1,0 +1,39 @@
+{
+  "template": "object_access_cf*",
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "dynamic_templates": [
+      {
+        "strings": {
+          "mapping": {
+            "type": "keyword"
+          },
+          "match_mapping_type": "string",
+          "match": "*"
+        }
+      }
+    ],
+    "properties": {
+      "geoip": {
+        "dynamic": true,
+        "properties": {
+          "ip": {
+            "type": "ip"
+          },
+          "location": {
+            "type": "geo_point"
+          },
+          "latitude": {
+            "type": "float"
+          },
+          "longitude": {
+            "type": "float"
+          }
+        }
+      }
+    }
+  }
+}
