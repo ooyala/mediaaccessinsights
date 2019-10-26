@@ -5,78 +5,95 @@ terraform {
     region = "us-east-1"
   }
 }
+
 variable "kibana_dashboard" {
-  type = "string"
+  type    = string
   default = "@../ReportTemplate/latest_dashboard1.json"
 }
+
 variable "manifest_parser" {
-  type = "string"
+  type    = string
   default = "./parser/manifest_parser.rb"
 }
+
 variable "manifest_parser_dest" {
-  type = "string"
+  type    = string
   default = "/home/ubuntu/logstash-7.3.1/manifest_parser.rb"
 }
+
 variable "s3accessstoredomain" {
-  type = "string"
+  type    = string
   default = "s3accessstore"
 }
+
 variable "aws_region" {
-  type = "string"
+  type    = string
   default = "us-east-1"
 }
+
 variable "cf_prefix" {
-  type = "string"
+  type = string
 }
+
 provider "aws" {
-  region = "${var.aws_region}"
+  region = var.aws_region
 }
+
 variable "cf_access_bucket" {
-  type = "string"
+  type    = string
   default = "s3transition-lambda-poc-logs"
 }
+
 variable "addition_auth_keys" {
-  type = "list"
+  type = list(string)
 }
+
 variable "deployer_key" {
-  type = "string"
+  type = string
 }
+
 variable "logstash_ami" {
-  type = "string"
+  type = string
 }
+
 variable "logstash_subnet_id" {
-  type = "string"
+  type = string
 }
+
 variable "logstash_security_group_ids" {
-  type = "list"
+  type = list(string)
 }
+
 variable "logstash_instance_type" {
-  type = "string"
+  type = string
 }
+
 variable "ssh_private_key_path" {
-  type = "string"
+  type = string
 }
 
 data "template_file" "cloudfront_conf" {
-  template = "${file("../AccessStoreConfig/cloudfront/cloudfront.conf.template")}"
-  vars {
-    region = "${var.aws_region}"
-    els_ep = "${aws_elasticsearch_domain.s3accessstore.endpoint}"
-    monitor_bkt = "${var.cf_access_bucket}"
-    cf_prefix = "${var.cf_prefix}"
-    parser_file = "${var.manifest_parser_dest}"
-    index_name = "object_access_cf"
-    template = "cloudfront.template.json"
-    grok_pattern = "%{DATE_EU:date}\\t%{TIME:time}\\t(?<x_edge_location>\\b[\\w\\-]+\\b)\\t(?:%{NUMBER:sc_bytes:int}|-)\\t%{IPORHOST:c_ip}\\t%{WORD:cs_method}\\t%{HOSTNAME:cs_host}\\t%{NOTSPACE:cs_uri_stem}\\t%{NUMBER:sc_status:int}\\t%{GREEDYDATA:referrer}\\t%{GREEDYDATA:User_Agent}\\t%{GREEDYDATA:cs_uri_query}\\t%{GREEDYDATA:cookies}\\t%{WORD:x_edge_result_type}\\t%{NOTSPACE:x_edge_request_id}\\t%{HOSTNAME:x_host_header}\\t%{URIPROTO:cs_protocol}\\t%{INT:cs_bytes:int}\\t%{NUMBER:time_taken:float}\\t%{NOTSPACE:x_forwarded_for}\\t%{NOTSPACE:ssl_protocol}\\t%{NOTSPACE:ssl_cipher}\\t%{NOTSPACE:x_edge_response_result_type}"
-    date_time = "%{date} %{time}"
+  template = file("../AccessStoreConfig/cloudfront/cloudfront.conf.template")
+  vars = {
+    region       = var.aws_region
+    els_ep       = aws_elasticsearch_domain.s3accessstore.endpoint
+    monitor_bkt  = var.cf_access_bucket
+    cf_prefix    = var.cf_prefix
+    parser_file  = var.manifest_parser_dest
+    index_name   = "object_access_cf"
+    template     = "cloudfront.template.json"
+    grok_pattern = "%%{DATE_EU:date}\\t%%{TIME:time}\\t(?<x_edge_location>\\b[\\w\\-]+\\b)\\t(?:%%{NUMBER:sc_bytes:int}|-)\\t%%{IPORHOST:c_ip}\\t%%{WORD:cs_method}\\t%%{HOSTNAME:cs_host}\\t%%{NOTSPACE:cs_uri_stem}\\t%%{NUMBER:sc_status:int}\\t%%{GREEDYDATA:referrer}\\t%%{GREEDYDATA:User_Agent}\\t%%{GREEDYDATA:cs_uri_query}\\t%%{GREEDYDATA:cookies}\\t%%{WORD:x_edge_result_type}\\t%%{NOTSPACE:x_edge_request_id}\\t%%{HOSTNAME:x_host_header}\\t%%{URIPROTO:cs_protocol}\\t%%{INT:cs_bytes:int}\\t%%{NUMBER:time_taken:float}\\t%%{NOTSPACE:x_forwarded_for}\\t%%{NOTSPACE:ssl_protocol}\\t%%{NOTSPACE:ssl_cipher}\\t%%{NOTSPACE:x_edge_response_result_type}"
+    date_time    = "%%{date} %%{time}"
   }
 }
+
 resource "local_file" "cloudfrontconfigfile" {
-  content = "${data.template_file.cloudfront_conf.rendered}"
+  content  = data.template_file.cloudfront_conf.rendered
   filename = "../AccessStoreConfig/cloudfront/cloudfront.conf"
 }
+
 variable "access_index" {
-  type = "string"
+  type    = string
   default = <<EOF
 {
       "settings" : {
@@ -87,9 +104,11 @@ variable "access_index" {
       }
     }
 EOF
+
 }
+
 variable "access_mapping" {
-  type = "string"
+  type    = string
   default = <<EOF
 {
    "dynamic_templates":[
@@ -120,9 +139,11 @@ variable "access_mapping" {
    }
 }
 EOF
+
 }
+
 variable "transition_index" {
-  type = "string"
+  type    = string
   default = <<EOF
 {
     "settings" : {
@@ -133,9 +154,11 @@ variable "transition_index" {
     }
 }
 EOF
+
 }
+
 variable "transition_mapping" {
-  type = "string"
+  type    = string
   default = <<EOF
 {
     "properties": {
@@ -147,27 +170,32 @@ variable "transition_mapping" {
      }
 }
 EOF
+
 }
 
 locals {
-  logstash_ssh_keys = "${join("\n", var.addition_auth_keys)}"
+  logstash_ssh_keys = join("\n", var.addition_auth_keys)
 }
 
 output "logstash_ssh_keys" {
-  value = "${join("\n", var.addition_auth_keys)}"
+  value = join("\n", var.addition_auth_keys)
 }
 
 # Elastic search creation for access data store
 # TODO: commenting it out as it would take more time to create; Comment only when you "DESTORY"
-data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
+data "aws_region" "current" {
+}
+
+data "aws_caller_identity" "current" {
+}
+
 resource "aws_elasticsearch_domain" "s3accessstore" {
-  domain_name = "${var.s3accessstoredomain}"
+  domain_name = var.s3accessstoredomain
   cluster_config {
-    instance_count = 2
-    dedicated_master_count = false
+    instance_count         = 2
+    dedicated_master_count = 1
     zone_awareness_enabled = false
-    instance_type = "t2.medium.elasticsearch"
+    instance_type          = "t2.medium.elasticsearch"
   }
   ebs_options {
     ebs_enabled = true
@@ -178,7 +206,7 @@ resource "aws_elasticsearch_domain" "s3accessstore" {
     enabled = false
   }
   elasticsearch_version = "7.1"
-  access_policies = <<POLICY
+  access_policies       = <<POLICY
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -194,6 +222,8 @@ resource "aws_elasticsearch_domain" "s3accessstore" {
   ]
 }
 POLICY
+
+
   provisioner "local-exec" {
     command = "curl -X PUT https://${aws_elasticsearch_domain.s3accessstore.endpoint}/object_access -H 'content-type: application/json' -d '${var.access_index}'"
   }
@@ -207,17 +237,18 @@ POLICY
     command = "curl -X PUT https://${aws_elasticsearch_domain.s3accessstore.endpoint}/object_transition/_mapping/insert_object_transition?include_type_name=true -H 'content-type: application/json' -d '${var.transition_mapping}'"
   }
   #provisioner "local-exec" {
-    #command = "curl -X POST https://${aws_elasticsearch_domain.s3accessstore.kibana_endpoint}/api/kibana/dashboards/import -H 'content-type: application/json' -H 'kbn-xsrf: true' -d '${var.kibana_dashboard}'"
+  #command = "curl -X POST https://${aws_elasticsearch_domain.s3accessstore.kibana_endpoint}/api/kibana/dashboards/import -H 'content-type: application/json' -H 'kbn-xsrf: true' -d '${var.kibana_dashboard}'"
   #}
 }
+
 # Create logstash Instance
 resource "aws_key_pair" "deployer" {
   key_name   = "key"
-  public_key = "${var.deployer_key}"
+  public_key = var.deployer_key
 }
 
 resource "aws_iam_role" "accessstorerole" {
-  name = "accessstorerole"
+  name               = "accessstorerole"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -233,10 +264,11 @@ resource "aws_iam_role" "accessstorerole" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_policy" "s3access" {
-  name = "s3access"
+  name   = "s3access"
   policy = <<POLICY
 {
     "Version": "2012-10-17",
@@ -249,9 +281,11 @@ resource "aws_iam_policy" "s3access" {
     ]
 }
 POLICY
+
 }
+
 resource "aws_iam_policy" "esfullaccess" {
-  name = "esfullaccess"
+  name   = "esfullaccess"
   policy = <<POLICY
 {
     "Version": "2012-10-17",
@@ -266,53 +300,58 @@ resource "aws_iam_policy" "esfullaccess" {
     ]
 }
 POLICY
+
 }
+
 resource "aws_iam_role_policy_attachment" "s3attach" {
-  policy_arn = "${aws_iam_policy.s3access.arn}"
-  role = "${aws_iam_role.accessstorerole.name}"
+  policy_arn = aws_iam_policy.s3access.arn
+  role       = aws_iam_role.accessstorerole.name
 }
+
 resource "aws_iam_role_policy_attachment" "esattach" {
-  policy_arn = "${aws_iam_policy.esfullaccess.arn}"
-  role = "${aws_iam_role.accessstorerole.name}"
+  policy_arn = aws_iam_policy.esfullaccess.arn
+  role       = aws_iam_role.accessstorerole.name
 }
+
 resource "aws_iam_instance_profile" "accessstoreprofile" {
   name = "accessstoreprofilename"
-  role = "${aws_iam_role.accessstorerole.name}"
+  role = aws_iam_role.accessstorerole.name
 }
+
 resource "aws_instance" "cflogcollector" {
-  ami = "${var.logstash_ami}"
-  instance_type = "${var.logstash_instance_type}"
-  count = "1"
-  key_name = "key"
-  subnet_id = "${var.logstash_subnet_id}"
-  vpc_security_group_ids = "${var.logstash_security_group_ids}"
+  ami                         = var.logstash_ami
+  instance_type               = var.logstash_instance_type
+  count                       = "1"
+  key_name                    = "key"
+  subnet_id                   = var.logstash_subnet_id
+  vpc_security_group_ids      = var.logstash_security_group_ids
   associate_public_ip_address = true
-  iam_instance_profile = "${aws_iam_instance_profile.accessstoreprofile.name}"
+  iam_instance_profile        = aws_iam_instance_profile.accessstoreprofile.name
   tags = {
     Name = "Logstash/CFLogCollector"
   }
   provisioner "file" {
-    source = "../AccessStoreConfig/cloudfront/cloudfront.template.json"
+    source      = "../AccessStoreConfig/cloudfront/cloudfront.template.json"
     destination = "/tmp/cloudfront.template.json"
   }
   provisioner "file" {
-    source = "${local_file.cloudfrontconfigfile.filename}"
+    source      = local_file.cloudfrontconfigfile.filename
     destination = "/tmp/cloudfront.conf"
   }
   provisioner "file" {
-    source = "../AccessStoreConfig/parser/manifest_parser.rb"
+    source      = "../AccessStoreConfig/parser/manifest_parser.rb"
     destination = "/tmp/manifest_parser.rb"
   }
   provisioner "file" {
-    source = "../AccessStoreConfig/GeoLite2-City_20190903/GeoLite2-City.mmdb"
+    source      = "../AccessStoreConfig/GeoLite2-City_20190903/GeoLite2-City.mmdb"
     destination = "/tmp/GeoLite2-City.mmdb"
   }
   connection {
-    type = "ssh"
-    user = "ubuntu"
-    private_key = "${file(var.ssh_private_key_path)}"
-    host = "${self.public_ip}"
-    agent = false
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = file(var.ssh_private_key_path)
+    host        = self.public_ip
+    agent       = false
   }
   timeouts {
     create = "10m"
@@ -336,7 +375,8 @@ resource "aws_instance" "cflogcollector" {
       "sudo cp /tmp/GeoLite2-City.mmdb /home/ubuntu/logstash-7.3.1/vendor/bundle/jruby/2.5.0/gems/logstash-filter-geoip-6.0.1-java/vendor",
       "nohup bin/logstash -f cloudfront.conf &",
       "sleep 120",
-      "echo \"Completed the Logstash deployment!!\""
+      "echo \"Completed the Logstash deployment!!\"",
     ]
   }
 }
+
