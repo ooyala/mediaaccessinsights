@@ -1,25 +1,5 @@
-variable "backend_bucket" {
-  type = string
-}
-
-variable "backend_region" {
-  type = string
-}
-
-variable "backend_prefix" {
-  type = string
-}
 terraform {
   backend "s3" {}
-}
-
-data "terraform_remote_state" "state" {
-  backend = "s3"
-  config {
-    bucket     = "${var.backend_bucket}"
-    region     = "${var.backend_region}"
-    key        = "${var.backend_prefix}"
-  }
 }
 
 variable "kibana_dashboard" {
@@ -50,6 +30,17 @@ variable "cf_prefix" {
   type = string
 }
 
+variable "cf_access_exclude" {
+  type = string
+}
+
+variable "cf_access_key_id" {
+  type = string
+}
+
+variable "cf_access_secret" {
+  type = string
+}
 provider "aws" {
   region = var.aws_region
 }
@@ -89,15 +80,18 @@ variable "ssh_private_key_path" {
 data "template_file" "cloudfront_conf" {
   template = file("../AccessStoreConfig/cloudfront/cloudfront.conf.template")
   vars = {
-    region       = var.aws_region
-    els_ep       = aws_elasticsearch_domain.s3accessstore.endpoint
-    monitor_bkt  = var.cf_access_bucket
-    cf_prefix    = var.cf_prefix
-    parser_file  = var.manifest_parser_dest
-    index_name   = "object_access_cf"
-    template     = "cloudfront.template.json"
-    grok_pattern = "%%{DATE_EU:date}\\t%%{TIME:time}\\t(?<x_edge_location>\\b[\\w\\-]+\\b)\\t(?:%%{NUMBER:sc_bytes:int}|-)\\t%%{IPORHOST:c_ip}\\t%%{WORD:cs_method}\\t%%{HOSTNAME:cs_host}\\t%%{NOTSPACE:cs_uri_stem}\\t%%{NUMBER:sc_status:int}\\t%%{GREEDYDATA:referrer}\\t%%{GREEDYDATA:User_Agent}\\t%%{GREEDYDATA:cs_uri_query}\\t%%{GREEDYDATA:cookies}\\t%%{WORD:x_edge_result_type}\\t%%{NOTSPACE:x_edge_request_id}\\t%%{HOSTNAME:x_host_header}\\t%%{URIPROTO:cs_protocol}\\t%%{INT:cs_bytes:int}\\t%%{NUMBER:time_taken:float}\\t%%{NOTSPACE:x_forwarded_for}\\t%%{NOTSPACE:ssl_protocol}\\t%%{NOTSPACE:ssl_cipher}\\t%%{NOTSPACE:x_edge_response_result_type}"
-    date_time    = "%%{date} %%{time}"
+    region            = var.aws_region
+    els_ep            = aws_elasticsearch_domain.s3accessstore.endpoint
+    monitor_bkt       = var.cf_access_bucket
+    cf_prefix         = var.cf_prefix
+    cf_access_exclude = var.cf_access_exclude
+    cf_access_key_id  = var.cf_access_key_id
+    cf_access_secret  = var.cf_access_secret
+    parser_file       = var.manifest_parser_dest
+    index_name        = "object_access_cf"
+    template          = "cloudfront.template.json"
+    grok_pattern      = "%%{DATE_EU:date}\\t%%{TIME:time}\\t(?<x_edge_location>\\b[\\w\\-]+\\b)\\t(?:%%{NUMBER:sc_bytes:int}|-)\\t%%{IPORHOST:c_ip}\\t%%{WORD:cs_method}\\t%%{HOSTNAME:cs_host}\\t%%{NOTSPACE:cs_uri_stem}\\t%%{NUMBER:sc_status:int}\\t%%{GREEDYDATA:referrer}\\t%%{GREEDYDATA:User_Agent}\\t%%{GREEDYDATA:cs_uri_query}\\t%%{GREEDYDATA:cookies}\\t%%{WORD:x_edge_result_type}\\t%%{NOTSPACE:x_edge_request_id}\\t%%{HOSTNAME:x_host_header}\\t%%{URIPROTO:cs_protocol}\\t%%{INT:cs_bytes:int}\\t%%{NUMBER:time_taken:float}\\t%%{NOTSPACE:x_forwarded_for}\\t%%{NOTSPACE:ssl_protocol}\\t%%{NOTSPACE:ssl_cipher}\\t%%{NOTSPACE:x_edge_response_result_type}"
+    date_time         = "%%{date} %%{time}"
   }
 }
 
@@ -258,7 +252,7 @@ POLICY
 # Create logstash Instance
 resource "aws_key_pair" "deployer" {
   key_name   = "key"
-  public_key = var.deployer_key
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCWYrBibfXw8iBUCWFTKXVtQJwGCc2iRjKNMBhHoZOdSW8RzZlqGDzPTDPr4kWlEGEHSsugtK/yirHCAq586siExU3I0UjhXvkGmjnfx1PwVl58BYiDf8DWQx4Dvlbgnwp68UBAzyE3m6gP4Wj/8Wx6I3QKIhQgttEDeTfqEgMeykn7PiHRKd0QZZ2nLIskRS5xDNhFyUYcv65t3gqaokDHU/1kz0ppk3yA4zifNTQEHcxSe4b2ItP3QlAiAxa+mXQDg34ai4vcVokILn3Zki/uZt3QfvZ1lZ/CO2iIyOXmGbPmk98ln4lbsnvWcAyc4ARCYwUsNBpZntnAulkP9R2UNPjq8QiqSc6QoRALekZhbLzu0SoglbDW3N1bnntdmNMieKUCQPX+A9NeCecbNymFyTtNKkKElQYF0n8cNtKvxT7FhZrihw9dHOmW2oVAj7/FMbiwCwz/pmcPqW0WNYs2qk+utzmm31ipI3VLofIZyClbqXxL+KEX21CRtzrHKFHcOJssjdk0KmkTH7frKkGG4G+97fQcQhAxLhMYIhtjEvs85+p6EC1i4DewBSgMmo5axbdQpwuY7MrGwxL5jFhEOTbRKuHudTB+ArMy5Tn1l8fk/h9c9kE6sVON93MZJZQUnfC8MPdm11TXniuIdLo5p2cpzpyiCWPyz71mQEgqRQ== maheshwarang@vpn-client-38.sv2"
 }
 
 resource "aws_iam_role" "accessstorerole" {
@@ -377,7 +371,7 @@ resource "aws_instance" "cflogcollector" {
       "sudo apt-get -y upgrade",
       "sudo apt-get install -y default-jdk",
       "sudo apt-get install -y ffmpeg",
-      "sudo echo \"${local.logstash_ssh_keys}\" > ~/.ssh/authorized_keys",
+      "sudo echo \"${local.logstash_ssh_keys}\" >> ~/.ssh/authorized_keys",
       "sudo echo \"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\" >> /etc/environment",
       "wget https://artifacts.elastic.co/downloads/logstash/logstash-7.3.1.tar.gz",
       "tar xvf logstash-7.3.1.tar.gz",
@@ -391,6 +385,9 @@ resource "aws_instance" "cflogcollector" {
       "sleep 120",
       "echo \"Completed the Logstash deployment!!\"",
     ]
+  }
+  provisioner "local-exec" {
+      command = "curl -X POST https://${aws_elasticsearch_domain.s3accessstore.kibana_endpoint}/api/kibana/dashboards/import -H 'content-type: application/json' -H 'kbn-xsrf: true' -d '${var.kibana_dashboard}'"
   }
 }
 

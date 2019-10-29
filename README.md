@@ -10,6 +10,7 @@ Following Info Graphs Shall be generated automatically for analysis and enhancem
 * Latency across (Average, Max and Min) Geolocation
 * CDN Edge node level access and latency tracking
 * Customer Experience Index (Overall & Geo specific)
+* Access classified against Device Type and OS Name
 * Streaming Errors
 
 ## High level System View

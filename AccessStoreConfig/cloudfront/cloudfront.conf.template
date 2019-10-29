@@ -3,6 +3,9 @@ input {
     bucket => "${monitor_bkt}"
     prefix => "${cf_prefix}"
     region => "${region}"
+    exclude_pattern => "${cf_access_exclude}"
+    access_key_id => "${cf_access_key_id}"
+    secret_access_key => "${cf_access_secret}"
   }
 }
 filter {
