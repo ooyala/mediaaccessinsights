@@ -28,7 +28,16 @@ def filter(event)
     @cloudfront_url = "http://#{event.get(@cf_host_v)}"
   end
 
+  if !((event.get(@source_field) =~ /[^\/]+.m3u8$/) || (event.get(@source_field) =~ /[^\/]+.m4a$/) || (event.get(@source_field) =~ /[^\/]+.ogg$/) || (event.get(@source_field) =~ /[^\/]+.aac$/) || (event.get(@source_field) =~ /[^\/]+.ts$/) || (event.get(@source_field) =~ /[^\/]+.mpd$/) || (event.get(@source_field) =~ /[^\/]+init.mp4$/) || (event.get(@source_field) =~ /[^\/]+.mp4$/) || (event.get(@source_field) =~ /[^\/]+.m4f$/) )
+    return []
+  end
 
+  if ((event.get(@source_field) =~ /[^\/]+.m4a$/) || (event.get(@source_field) =~ /[^\/]+.ogg$/) || (event.get(@source_field) =~ /[^\/]+.aac$/) )
+    event.set('type',"audio_only")
+    event.set('mimetype', 'm4a') if (event.get(@source_field) =~ /[^\/]+.m4a$/)
+    event.set('mimetype', 'ogg') if (event.get(@source_field) =~ /[^\/]+.ogg$/)
+    event.set('mimetype', 'aac') if (event.get(@source_field) =~ /[^\/]+.aac$/)
+  end
   if event.get('sc_status').to_i >= 400
     return [event]
   end
@@ -110,7 +119,7 @@ def filter(event)
         variant_manifest_data = parse_hls_variant_manifest(response, manifest_url, true)
         segment_url = variant_manifest_data[:segment_syntax]
         puts "Segment URL => #{segment_url}"
-        es_record = check_for_hls_segment(segment_url)
+        es_record = check_for_segment(segment_url)
         last_record = es_record["hits"]["hits"][0] rescue nil
         puts "Segment record =>#{last_record}"
         if !variant_manifest_data.empty? && last_record.nil?
@@ -126,7 +135,7 @@ def filter(event)
     puts "URI #{segment_url_orig}"
     segment_url = segment_url_orig.gsub(/\d+(?!\/).ts.*/,'')
     puts "Segment URL : #{segment_url}"
-    es_record = check_for_hls_segment(segment_url)
+    es_record = check_for_segment(segment_url)
     last_record = es_record["hits"]["hits"][0] rescue nil
 
     if last_record
@@ -152,7 +161,7 @@ def filter(event)
       segment_syntax = segment_url_orig.gsub(/\d+(?!\/).ts.*/, '')
       return_hash.merge!(stream_info)
       return_hash[:segment_syntax] = segment_syntax
-      event.set('bitrate', stream_info[:BANDWIDTH])
+      event.set('bitrate', stream_info[:BANDWIDTH].to_i)
       event.set('codecs', stream_info[:CODECS])
       event.set('resolution', stream_info[:RESOLUTION])
       puts "ES Payload #{return_hash}"
@@ -213,7 +222,35 @@ def filter(event)
       variant_manifests_data = parse_dash_manifest(response, manifest_url)
       # TODO: Need to find the Bandwidth in this case...
       puts "variant manifest data #{variant_manifests_data}"
-      #write_manifest_to_es(manifest_url, variant_manifests_data) if variant_manifests_data.size > 0
+      write_manifest_to_es(manifest_url, variant_manifests_data) if variant_manifests_data.size > 0
+    end
+  elsif (event.get(@source_field) =~ /[^\/]+.mp4$/) || (event.get(@source_field) =~ /[^\/]+.m4f$/)
+    segment_url_orig = event.get(@source_field)
+    puts "URI #{segment_url_orig}"
+    segment_url = segment_url_orig.gsub(/\d+(?!\/).mp4.*/,'') if event.get(@source_field) =~ /[^\/]+.mp4$/
+    segment_url = segment_url_orig.gsub(/\d+(?!\/).m4f.*/,'') if event.get(@source_field) =~ /[^\/]+.m4f$/
+    puts "Segment URL : #{segment_url}"
+
+    es_record = check_for_segment(segment_url)
+    last_record = es_record["hits"]["hits"][0] rescue nil
+    if last_record
+      bw = last_record["_source"]["BANDWIDTH"]
+      codecs = last_record["_source"]["CODECS"]
+      frame_rate = last_record["_source"]["FRAME-RATE"]
+      resolution = last_record["_source"]["RESOLUTION"]
+      event.set('bitrate', bw.to_i) if bw
+      event.set('codecs', codecs) if codecs
+      event.set('frame_rate', frame_rate) if frame_rate
+      event.set('resolution', resolution) if resolution
+      event.set('type',"segment")
+      if bw
+        exp_index = get_experiance_index(bw, event.get('sc_bytes'), event.get('time_taken'))
+        exp_index = exp_index>1 ? 1 : exp_index
+        event.set('exp_index', exp_index.to_f)
+      end
+      return [event]
+    else
+      puts "Segment syntax not found in abr_avails; Not populating bandwidth data"
     end
   end
   [event]
@@ -249,7 +286,7 @@ def check_for_manifest(manifest_url)
   return es_record
 end
 
-def check_for_hls_segment(segment_url)
+def check_for_segment(segment_url)
   puts "Checking if the segment is already entered #{segment_url}"
 
   search_params = {
@@ -333,19 +370,23 @@ def parse_dash_manifest(response, uri)
         if rep_segment_template
           initialization = rep_segment_template.attributes['initialization']
           media = rep_segment_template.attributes['media']
-          media.gsub!('$Bandwidth$', bandwidth) if media.include?('$Bandwidth$')
-          media.gsub!('$Number$', '') if media.include?('$Number$')
-          media.gsub!('$RepresentationID$', representation.attributes["id"]) if media.include?('$RepresentationID$')
+          media_clone = media.clone
+          media_clone.gsub!('$Bandwidth$', bandwidth) if media_clone.include?('$Bandwidth$')
+          media_clone.gsub!(/\$Number.*/, '') if media_clone.include?('$Number')
+          media_clone.gsub!(/\$Time.*/, '') if media_clone.include?('$Time')
+          media_clone.gsub!('$RepresentationID$', representation.attributes["id"]) if media_clone.include?('$RepresentationID$')
         elsif top_level_segment_template
-          media.gsub!('$Bandwidth$', bandwidth) if media.include?('$Bandwidth$')
-          media.gsub!(/\$Number.*/, '') if media.include?('$Number')
-          media.gsub!('$RepresentationID$', representation.attributes["id"]) if media.include?('$RepresentationID$')
+          media_clone = media.clone
+          media_clone.gsub!('$Bandwidth$', bandwidth) if media_clone.include?('$Bandwidth$')
+          media_clone.gsub!(/\$Number.*/, '') if media_clone.include?('$Number')
+          media_clone.gsub!(/\$Time.*/, '') if media_clone.include?('$Time')
+          media_clone.gsub!('$RepresentationID$', representation.attributes["id"]) if media_clone.include?('$RepresentationID$')
         end
-        puts "Media #{media}"
+        puts "Media #{media_clone}"
         split_arr = uri.split('/', -1)
         split_arr.delete_at(split_arr.size - 1)
         sub_manifest_url = split_arr.join('/') + '/' + initialization
-        segment_syntax = split_arr.join('/') + '/' + media
+        segment_syntax = split_arr.join('/') + '/' + media_clone
         case mimeType
           when "video/mp4"
             value_hash = {
@@ -375,7 +416,6 @@ def parse_dash_manifest(response, uri)
     puts ("Exception while reading manifest #{e.backtrace.join("\n")}")
     return []
   end
-  puts "Dash return data #{return_data}"
   return return_data
 end
 
@@ -473,14 +513,6 @@ def parse_hls_variant_manifest(response, uri, inspect_seg)
       return_hash[:target_duration] = target_duration.gsub(',','').strip
       grab_next_line = true
     elsif grab_next_line
-=begin
-      pattern_to_match = media_sequence + '.' + 'ts'
-      puts "pattern to match #{pattern_to_match}"
-      segment_syntax = ln.scan(/(.*)#{pattern_to_match}/).first.first rescue ''
-      split_arr = uri.split('/', -1)
-      split_arr.delete_at(split_arr.size - 1)
-      segment_syntax = split_arr.join('/') + '/' + segment_syntax
-=end
       split_arr = uri.split('/', -1)
       split_arr.delete_at(split_arr.size - 1)
       if inspect_seg

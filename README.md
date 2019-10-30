@@ -24,7 +24,7 @@ Following Info Graphs Shall be generated automatically for analysis and enhancem
 
 ## Understanding the configuration
 
-## Steps to Deploy
+## Steps to provision the application
 1. Clone the repository
 2. docker build -t mediaaccesssinsights .
 3. Make configuration changes in file deploy/cfanalysis.auto.tfvars
@@ -33,3 +33,7 @@ Following Info Graphs Shall be generated automatically for analysis and enhancem
 6. terraform init
 7. terraform plan
 8. terraform apply
+
+## Steps to Deprovision the application
+
+1. terraform destory

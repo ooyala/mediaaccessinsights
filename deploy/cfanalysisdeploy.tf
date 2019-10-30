@@ -4,7 +4,7 @@ terraform {
 
 variable "kibana_dashboard" {
   type    = string
-  default = "@../ReportTemplate/latest_dashboard1.json"
+  default = "@../ReportTemplate/latest_dashboard6.json"
 }
 
 variable "manifest_parser" {
@@ -115,6 +115,20 @@ EOF
 
 }
 
+variable "abr_avails" {
+  type = "string"
+  default = <<EOF
+  {
+        "settings" : {
+          "index" : {
+            "number_of_shards" : 2,
+            "number_of_replicas" : 1
+          }
+        }
+      }
+  EOF
+}
+
 variable "access_mapping" {
   type    = string
   default = <<EOF
@@ -148,6 +162,26 @@ variable "access_mapping" {
 }
 EOF
 
+}
+
+variable "abr_avails_mapping" {
+  type = "string"
+  default = <<EOF
+  {
+     "dynamic_templates":[
+        {
+           "strings":{
+              "mapping":{
+                 "type":"keyword"
+              },
+              "match_mapping_type":"string",
+              "match":"*"
+           }
+        }
+     ],
+     "properties":{}
+  }
+  EOF
 }
 
 variable "transition_index" {
@@ -244,15 +278,19 @@ POLICY
   provisioner "local-exec" {
     command = "curl -X PUT https://${aws_elasticsearch_domain.s3accessstore.endpoint}/object_transition/_mapping/insert_object_transition?include_type_name=true -H 'content-type: application/json' -d '${var.transition_mapping}'"
   }
-  #provisioner "local-exec" {
-  #command = "curl -X POST https://${aws_elasticsearch_domain.s3accessstore.kibana_endpoint}/api/kibana/dashboards/import -H 'content-type: application/json' -H 'kbn-xsrf: true' -d '${var.kibana_dashboard}'"
-  #}
+  provisioner "local-exec" {
+    command = "curl -X PUT https://${aws_elasticsearch_domain.s3accessstore.endpoint}/abr_avails -H 'content-type: application/json' -d '${var.abr_avails}'"
+  }
+
+  provisioner "local-exec" {
+    command = "curl -X PUT https://${aws_elasticsearch_domain.s3accessstore.endpoint}/abr_avails/_mapping -H 'content-type: application/json' -d '${var.abr_avails_mapping}'"
+  }
 }
 
 # Create logstash Instance
 resource "aws_key_pair" "deployer" {
   key_name   = "key"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCWYrBibfXw8iBUCWFTKXVtQJwGCc2iRjKNMBhHoZOdSW8RzZlqGDzPTDPr4kWlEGEHSsugtK/yirHCAq586siExU3I0UjhXvkGmjnfx1PwVl58BYiDf8DWQx4Dvlbgnwp68UBAzyE3m6gP4Wj/8Wx6I3QKIhQgttEDeTfqEgMeykn7PiHRKd0QZZ2nLIskRS5xDNhFyUYcv65t3gqaokDHU/1kz0ppk3yA4zifNTQEHcxSe4b2ItP3QlAiAxa+mXQDg34ai4vcVokILn3Zki/uZt3QfvZ1lZ/CO2iIyOXmGbPmk98ln4lbsnvWcAyc4ARCYwUsNBpZntnAulkP9R2UNPjq8QiqSc6QoRALekZhbLzu0SoglbDW3N1bnntdmNMieKUCQPX+A9NeCecbNymFyTtNKkKElQYF0n8cNtKvxT7FhZrihw9dHOmW2oVAj7/FMbiwCwz/pmcPqW0WNYs2qk+utzmm31ipI3VLofIZyClbqXxL+KEX21CRtzrHKFHcOJssjdk0KmkTH7frKkGG4G+97fQcQhAxLhMYIhtjEvs85+p6EC1i4DewBSgMmo5axbdQpwuY7MrGwxL5jFhEOTbRKuHudTB+ArMy5Tn1l8fk/h9c9kE6sVON93MZJZQUnfC8MPdm11TXniuIdLo5p2cpzpyiCWPyz71mQEgqRQ== maheshwarang@vpn-client-38.sv2"
+  public_key = var.deployer_key
 }
 
 resource "aws_iam_role" "accessstorerole" {
