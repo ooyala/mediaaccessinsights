@@ -11,7 +11,18 @@ Following Info Graphs Shall be generated automatically for analysis and enhancem
 * CDN Edge node level access and latency tracking
 * Customer Experience Index (Overall & Geo specific)
 * Access classified against Device Type and OS Name
+* Unique Framerate , Codec, etc. Usage
+* CDN cache Hit & Miss Ratio
+* Bitrate Ladder view across countries (0-1Mbps, 1-3Mbps, 3-6Mbps, 6-8Mbps)
 * Streaming Errors
+
+## Screen Snapshots
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/Screenshot1.png)
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/Screenshot2.png)
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/Screenshot3.png)
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/Screenshot4.png)
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/Screenshot5.png)
+
 
 ## High level System View
 ![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/media_access_insights_schematic_view.png)
