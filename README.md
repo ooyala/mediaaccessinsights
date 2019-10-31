@@ -36,7 +36,6 @@ Following Info Graphs Shall be generated automatically for analysis and enhancem
 ## Understanding the configuration
 
 ### AWS region that we are going to operate on ..!
-##### AWS Region of the Bucket configured Above
 aws_region = "<<AWS Region>>"
 
 ### Cloudfront Access Bucket Configuration
