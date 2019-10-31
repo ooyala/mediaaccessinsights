@@ -219,8 +219,8 @@ locals {
   logstash_ssh_keys = join("\n", var.addition_auth_keys)
 }
 
-output "logstash_ssh_keys" {
-  value = join("\n", var.addition_auth_keys)
+output "kibana_endpoint_url" {
+  value = "https://${aws_elasticsearch_domain.s3accessstore.kibana_endpoint}"
 }
 
 # Elastic search creation for access data store

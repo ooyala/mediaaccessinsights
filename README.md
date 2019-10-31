@@ -87,6 +87,8 @@ $ docker build -t mediaaccessinsights .
 #Once the build is complete; check image created
 $ docker images
 ```
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/docker_images.png)
+
 4. Make configuration changes in file deploy/cfanalysis.auto.tfvars 
 (use understanding configuration information to configure)
 
@@ -121,6 +123,12 @@ $ terraform plan
 
 $ terraform apply
 ```
+
+#### terraform output
+
+##### This will output the Kibana Url that shall be used to view the access insights Kibana Dashboard
+
+![alt text](https://github.com/cloudaffair/mediaaccessinsights/blob/master/misc/terraform_output.png)
 
 ## Steps to De-provision the application
 
