@@ -51,7 +51,7 @@ cf_access_key_id = ""
 ##### If the cloudfront logs are available in a different AWS account, add the secret key for that account; Optional if the logs are available on the same account
 cf_access_secret = ""
 
-###Logstash EC2 configuration
+### Logstash EC2 configuration
 ##### Configure SSH Keys that might need access to the Logstash EC2 instance
 addition_auth_keys = ["ssh_key_1","ssh_key_2",...]
 ##### AWS AMI instance ID
